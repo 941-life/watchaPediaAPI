@@ -14,7 +14,7 @@ def get_db_connection():
         conn = pymysql.connect(
             host="localhost",
             user="root",
-            password="ckstn010324!",
+            password="0909",
             db="watchapedia",
             charset='utf8mb4',
             cursorclass=pymysql.cursors.DictCursor
@@ -35,43 +35,13 @@ def preference(user_id):
         conn = get_db_connection()
         cursor = conn.cursor()
         queries = {
-            "영화 목록": """
+            "특정 유저의 영화 평가 수": """
                 SELECT 
-                    m.title AS 영화제목,
-                    d.director_name AS 감독이름,
-                    GROUP_CONCAT(DISTINCT a.actor_name) AS 배우목록,
-                    g.genre_name AS 장르,
-                    co.country_name AS 국가,
-                    m.runtime AS 상영시간
-                FROM movies m
-                JOIN directors d ON m.director_id = d.director_id
-                JOIN movieactors ma ON m.movie_id = ma.movie_id
-                JOIN actors a ON ma.actor_id = a.actor_id
-                JOIN genres g ON m.genre_id = g.genre_id
-                JOIN countries co ON m.country_id = co.country_id
-                GROUP BY m.movie_id
-                ORDER BY m.title;
+                    COUNT(*) AS 평가수
+                FROM comments
+                WHERE user_id = %s;
             """,
-            "특정 유저의 영화 평가 목록": """
-            SELECT 
-                m.title AS 영화제목,
-                d.director_name AS 감독이름,
-                GROUP_CONCAT(DISTINCT a.actor_name ORDER BY a.actor_name ASC) AS 배우목록,
-                g.genre_name AS 장르,
-                co.country_name AS 국가,
-                m.runtime AS 상영시간,
-                c.rating AS 별점
-            FROM comments c
-            JOIN movies m ON c.movie_id = m.movie_id
-            JOIN directors d ON m.director_id = d.director_id
-            JOIN movieactors ma ON m.movie_id = ma.movie_id
-            JOIN actors a ON ma.actor_id = a.actor_id
-            JOIN genres g ON m.genre_id = g.genre_id
-            JOIN countries co ON m.country_id = co.country_id
-            WHERE c.user_id = %s
-            GROUP BY m.movie_id, c.rating
-            ORDER BY c.rating DESC, m.title ASC;
-            """,
+
             "특정 유저의 별점 빈도":
                 """
                         SELECT 
@@ -105,8 +75,21 @@ def preference(user_id):
                 """
                         SELECT 
                             CASE 
-                                WHEN ROUND(((유저평균.별점 - 전체평균.별점) / 전체평균.별점) * 100, 2) >= 40 THEN '5점 뿌리는 ''부처님 급'' 아량의 소유자'
+                                 WHEN ROUND(((유저평균.별점 - 전체평균.별점) / 전체평균.별점) * 100, 2) >= 40 THEN '5점 뿌리는 ''부처님 급'' 아량의 소유자'
                                 WHEN ROUND(((유저평균.별점 - 전체평균.별점) / 전체평균.별점) * 100, 2) >= 35 THEN '영화면 마냥 다 좋은 ''천사 급'' 착한 사람'
+                                WHEN ROUND(((유저평균.별점 - 전체평균.별점) / 전체평균.별점) * 100, 2) >= 30 THEN '남 작품에 욕 잘 못하는 착한 품성의 ''돌고래 파'''
+                                WHEN ROUND(((유저평균.별점 - 전체평균.별점) / 전체평균.별점) * 100, 2) >= 25 THEN '별점에 다소 관대한 경향이 있는 ''다 주고파'''
+                                WHEN ROUND(((유저평균.별점 - 전체평균.별점) / 전체평균.별점) * 100, 2) >= 20 THEN '남들보다 별점을 조금 후하게 주는 ''인심파'''
+                                WHEN ROUND(((유저평균.별점 - 전체평균.별점) / 전체평균.별점) * 100, 2) >= 15 THEN '영화를 정말로 즐길 줄 아는 ''현명파'''
+                                WHEN ROUND(((유저평균.별점 - 전체평균.별점) / 전체평균.별점) * 100, 2) >= 10 THEN '편식 없이 골고루 보는 ''균형파'''
+                                WHEN ROUND(((유저평균.별점 - 전체평균.별점) / 전체평균.별점) * 100, 2) >= 5 THEN '대중의 평가에 잘 휘둘리지 않는 ''지조파'''
+                                WHEN ROUND(((유저평균.별점 - 전체평균.별점) / 전체평균.별점) * 100, 2) >= -5 THEN '평가에 있어 주관이 뚜렷한 ''소나무파'''
+                                WHEN ROUND(((유저평균.별점 - 전체평균.별점) / 전체평균.별점) * 100, 2) >= -10 THEN '대체로 영화를 즐기지만 때론 혹평도 마다치 않는 ''이성파'''
+                                WHEN ROUND(((유저평균.별점 - 전체평균.별점) / 전체평균.별점) * 100, 2) >= -15 THEN '평가에 상대적으로 깐깐한 ''깐새우파'''
+                                WHEN ROUND(((유저평균.별점 - 전체평균.별점) / 전체평균.별점) * 100, 2) >= -20 THEN '작품을 남들보다 진지하고 비판적으로 보는 ''지성파'''
+                                WHEN ROUND(((유저평균.별점 - 전체평균.별점) / 전체평균.별점) * 100, 2) >= -25 THEN '작품을 대단히 냉정하게 평가하는 ''냉장고파'''
+                                WHEN ROUND(((유저평균.별점 - 전체평균.별점) / 전체평균.별점) * 100, 2) >= -30 THEN '웬만해서는 호평을 하지 않는 매서운 ''독수리파'''
+                                WHEN ROUND(((유저평균.별점 - 전체평균.별점) / 전체평균.별점) * 100, 2) >= -35 THEN '별점을 대단히 짜게 주는 한줌의 ''소금'' 같은 분'
                                 WHEN ROUND(((유저평균.별점 - 전체평균.별점) / 전체평균.별점) * 100, 2) >= -40 THEN '웬만해선 영화에 만족하지 않는 ''헝그리파'''
                                 ELSE '세상 영화들에 불만이 많으신 ''개혁파'''
                             END AS 스타일
@@ -222,22 +205,22 @@ def preference(user_id):
                 """
                         SELECT 
                             CASE 
-                                WHEN PERCENT_RANK() OVER (ORDER BY SUM(m.runtime) DESC) * 100 <= 0.001 THEN '경지에 도달한 ''Film Master'''
-                                WHEN PERCENT_RANK() OVER (ORDER BY SUM(m.runtime) DESC) * 100 <= 0.005 THEN '국내에 몇 안되는 ''영화 Expert'''
-                                WHEN PERCENT_RANK() OVER (ORDER BY SUM(m.runtime) DESC) * 100 <= 0.01 THEN '상위 0.01%에 꼽히는 ''베테랑 영화인'''
-                                WHEN PERCENT_RANK() OVER (ORDER BY SUM(m.runtime) DESC) * 100 <= 0.03 THEN '영화 감독을 꿈꿀지 모를 ''영화 프로페셔널'''
-                                WHEN PERCENT_RANK() OVER (ORDER BY SUM(m.runtime) DESC) * 100 <= 0.1 THEN '상위 0.1%의 왓챠 보증 ''1등급 영화 내공인'''
-                                WHEN PERCENT_RANK() OVER (ORDER BY SUM(m.runtime) DESC) * 100 <= 1 THEN '상위 1%! 속옷은 갈아 입고 영화 보시죠?'
-                                WHEN PERCENT_RANK() OVER (ORDER BY SUM(m.runtime) DESC) * 100 <= 3 THEN '영화 본 시간으로 상위 3%! 왓챠가 보증하는 영화 내공인'
-                                WHEN PERCENT_RANK() OVER (ORDER BY SUM(m.runtime) DESC) * 100 <= 5 THEN '상위 5% 진입! 공식적인 영화인입니다.'
-                                WHEN PERCENT_RANK() OVER (ORDER BY SUM(m.runtime) DESC) * 100 <= 30 THEN '상위 30%만큼 영화를 보셨어요. 그래도 상위권!'
-                                WHEN PERCENT_RANK() OVER (ORDER BY SUM(m.runtime) DESC) * 100 <= 60 THEN '영화 본 시간으로 아직 평균에 못 미쳐요ᅲ'
+                                WHEN PERCENT_RANK() OVER (ORDER BY FLOOR(SUM(m.runtime) / 60) DESC) * 100 <= 0.001 THEN '경지에 도달한 ''Film Master'''
+                                WHEN PERCENT_RANK() OVER (ORDER BY FLOOR(SUM(m.runtime) / 60) DESC) * 100 <= 0.005 THEN '국내에 몇 안되는 ''영화 Expert'''
+                                WHEN PERCENT_RANK() OVER (ORDER BY FLOOR(SUM(m.runtime) / 60) DESC) * 100 <= 0.01 THEN '상위 0.01퍼센트에 꼽히는 ''베테랑 영화인'''
+                                WHEN PERCENT_RANK() OVER (ORDER BY FLOOR(SUM(m.runtime) / 60) DESC) * 100 <= 0.03 THEN '영화 감독을 꿈꿀지 모를 ''영화 프로페셔널'''
+                                WHEN PERCENT_RANK() OVER (ORDER BY FLOOR(SUM(m.runtime) / 60) DESC) * 100 <= 0.1 THEN '상위 0.1퍼센트의 왓챠 보증 ''1등급 영화 내공인'''
+                                WHEN PERCENT_RANK() OVER (ORDER BY FLOOR(SUM(m.runtime) / 60) DESC) * 100 <= 1 THEN '상위 1퍼센트! 속옷은 갈아 입고 영화 보시죠'
+                                WHEN PERCENT_RANK() OVER (ORDER BY FLOOR(SUM(m.runtime) / 60) DESC) * 100 <= 3 THEN '영화 본 시간으로 상위 3퍼센트! 왓챠가 보증하는 영화 내공인'
+                                WHEN PERCENT_RANK() OVER (ORDER BY FLOOR(SUM(m.runtime) / 60) DESC) * 100 <= 5 THEN '상위 5퍼센트 진입! 공식적인 영화인입니다.'
+                                WHEN PERCENT_RANK() OVER (ORDER BY FLOOR(SUM(m.runtime) / 60) DESC) * 100 <= 30 THEN '상위 30퍼센트만큼 영화를 보셨어요. 그래도 상위권!'
+                                WHEN PERCENT_RANK() OVER (ORDER BY FLOOR(SUM(m.runtime) / 60) DESC) * 100 <= 60 THEN '영화 본 시간으로 아직 평균에 못 미쳐요ᅲ'
                                 ELSE '평가하는 거 나름 되게 재미있는데 어서 더 평가를...'
                             END AS 멘트
                         FROM comments c
                         JOIN movies m ON c.movie_id = m.movie_id
                         GROUP BY c.user_id
-                        HAVING c.user_id = %s; 
+                        HAVING c.user_id = %s;
                         """
 
         }
@@ -245,16 +228,21 @@ def preference(user_id):
         response_data = {}
         for key, query in queries.items():
             try:
-                # user_id가 필요한 횟수만큼 tuple로 만들어 전달
-                placeholder_count = query.count('%s')  # %s 개수 세기
-                if placeholder_count > 0:
-                    cursor.execute(query, tuple([user_id] * placeholder_count))
-                else:
-                    cursor.execute(query)
-                    response_data[key] = cursor.fetchall()
-            except Exception as e:  # 각 쿼리 실행 중 발생하는 오류 처리
-                logging.error(f"Error executing query '{key}': {e}")
-                response_data[key] = {"error": str(e)}  # 오류를 결과에 포함
+                placeholder_count = query.count('%s')
+                params = tuple([user_id] * placeholder_count)  # %s 개수만큼 user_id 반복
+                logging.debug(f"Executing query for key: {key}")
+                logging.debug(f"Query: {query}")
+                logging.debug(f"Parameters: {params}")
+
+                # 쿼리 실행
+                cursor.execute(query, params)
+                result = cursor.fetchall()
+
+                # 결과 저장
+                response_data[key] = result if result else {"message": "No data available"}
+            except Exception as e:
+                logging.error(f"Error in query '{key}': {e}")
+                response_data[key] = {"error": str(e)}
 
         return jsonify(response_data), 200
 
