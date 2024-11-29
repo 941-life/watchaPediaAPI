@@ -1,25 +1,39 @@
 from flask import Flask, jsonify
 import pymysql
+import logging
 
 app = Flask(__name__)
 
-# Database connection function
+# 로깅 설정 추가
+logging.basicConfig(level=logging.DEBUG)
+
 def get_db_connection():
-    return pymysql.connect(
-        host="localhost",
-        user="root",
-        password="040320",
-        database="watchapedia",
-        cursorclass=pymysql.cursors.DictCursor
-    )
+    try:
+        conn = pymysql.connect(
+            host="localhost",
+            user="root",
+            password="ckstn010324!",
+            db="watchapedia",
+            charset='utf8mb4',
+            cursorclass=pymysql.cursors.DictCursor
+        )
+        logging.info("Database connection successful")
+        return conn
+    except Exception as e:
+        logging.error(f"Database connection failed: {str(e)}")
+        raise
 
 @app.route('/home/<int:user_id>', methods=['GET'])
 def home(user_id):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-
+    conn = None
+    cursor = None
     try:
-        # 박스오피스 순위
+        logging.info(f"Processing request for user_id: {user_id}")
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # 각 쿼리 실행 전에 로그 추가
+        logging.info("Executing box office query")
         cursor.execute("""
             SELECT m.title AS movie_title, m.box_office AS is_box_office
             FROM movies m
@@ -27,9 +41,9 @@ def home(user_id):
             ORDER BY m.runtime DESC
             LIMIT 5
         """)
-        box_office_movies = cursor.fetchall()
+        box_office_movies = cursor.fetchall() or []
 
-        # 최근에 평가한 영화
+        logging.info("Executing recent reviews query")
         cursor.execute("""
             SELECT m.title AS movie_title, c.rating AS user_rating, c.comment AS user_comment
             FROM comments c
@@ -38,9 +52,9 @@ def home(user_id):
             ORDER BY c.comment_id DESC
             LIMIT 5
         """, (user_id,))
-        recent_reviews = cursor.fetchall()
+        recent_reviews = cursor.fetchall() or []
 
-        # 선호하는 감독 작품
+        logging.info("Executing favorite directors query")
         cursor.execute("""
             SELECT m.title AS movie_title, d.director_name AS director_name
             FROM favorite_directors fd
@@ -49,9 +63,9 @@ def home(user_id):
             WHERE fd.user_id = %s
             LIMIT 5
         """, (user_id,))
-        favorite_director_movies = cursor.fetchall()
+        favorite_director_movies = cursor.fetchall() or []
 
-        # 선호하는 배우 작품
+        logging.info("Executing favorite actors query")
         cursor.execute("""
             SELECT m.title AS movie_title, a.actor_name AS actor_name
             FROM favorite_actors fa
@@ -61,23 +75,28 @@ def home(user_id):
             WHERE fa.user_id = %s
             LIMIT 5
         """, (user_id,))
-        favorite_actor_movies = cursor.fetchall()
+        favorite_actor_movies = cursor.fetchall() or []
 
-        # 응답 데이터 구성
         response = {
-            "box_office": box_office_movies if box_office_movies else "No data",
-            "recent_reviews": recent_reviews if recent_reviews else "No data",
-            "favorite_director_movies": favorite_director_movies if favorite_director_movies else "No data",
-            "favorite_actor_movies": favorite_actor_movies if favorite_actor_movies else "No data"
+            "box_office": box_office_movies,
+            "recent_reviews": recent_reviews,
+            "favorite_director_movies": favorite_director_movies,
+            "favorite_actor_movies": favorite_actor_movies
         }
 
-    except Exception as e:
-        response = {"error": str(e)}
-    finally:
-        cursor.close()
-        conn.close()
+        logging.info("Request processed successfully")
+        return jsonify(response)
 
-    return jsonify(response)
+    except Exception as e:
+        logging.error(f"Error processing request: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
+        logging.info("Database connection closed")
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=True, port=5000)
